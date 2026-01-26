@@ -134,12 +134,16 @@ export default function NumberPyramidPuzzle() {
   const [solvedCount, setSolvedCount] = useState<number>(0);
   const [firstTryCount, setFirstTryCount] = useState<number>(0);
 
-  const [solution, setSolution] = useState<number[][]>(() => buildSolutionPyramid(3, 20));
-  const [puzzle, setPuzzle] = useState<Puzzle>(() => {
+  // Initialize solution and puzzle together to ensure they match
+  const initialData = useMemo(() => {
     const sol = buildSolutionPyramid(3, 20);
     const mask = makeGivenMask(sol, 3);
-    return makePuzzleFromSolution(sol, mask);
-  });
+    const puz = makePuzzleFromSolution(sol, mask);
+    return { solution: sol, puzzle: puz };
+  }, []);
+
+  const [solution, setSolution] = useState<number[][]>(initialData.solution);
+  const [puzzle, setPuzzle] = useState<Puzzle>(initialData.puzzle);
 
   const [statusEmoji, setStatusEmoji] = useState<string>("🧠");
   const [statusText, setStatusText] = useState<string>("Trag Zahlen in die leeren Steine ein!");
