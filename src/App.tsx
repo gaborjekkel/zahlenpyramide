@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Cell = {
   given: boolean;
@@ -100,6 +100,17 @@ function cleanNumericInput(next: string) {
   return cleaned.slice(0, 4);
 }
 
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 // Üres mező is hiba + rossz szám is hiba
 function getWrongPositions(puzzle: Puzzle, solution: number[][]) {
   const wrong: Pos[] = [];
@@ -134,8 +145,52 @@ export default function NumberPyramidPuzzle() {
   const [solvedCount, setSolvedCount] = useState<number>(0);
   const [firstTryCount, setFirstTryCount] = useState<number>(0);
 
+  // Session timer - load from localStorage immediately
+  const [sessionStartTime] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem("np_session_v1");
+      if (raw) {
+        const saved = JSON.parse(raw) as { sessionStartTime?: number; lastActivity?: number };
+        const now = Date.now();
+        const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+        // If last activity was within 5 minutes, restore session
+        if (saved.lastActivity && now - saved.lastActivity < SESSION_TIMEOUT) {
+          return saved.sessionStartTime || Date.now();
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return Date.now();
+  });
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+
   // Initialize solution and puzzle together to ensure they match
   const initialData = useMemo(() => {
+    // Try to restore from localStorage first
+    try {
+      const raw = localStorage.getItem("np_session_v1");
+      if (raw) {
+        const saved = JSON.parse(raw) as {
+          sessionStartTime?: number;
+          lastActivity?: number;
+          solution?: number[][];
+          puzzle?: Puzzle;
+        };
+        const now = Date.now();
+        const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+        // If last activity was within 5 minutes, restore puzzle
+        if (saved.lastActivity && now - saved.lastActivity < SESSION_TIMEOUT && saved.solution && saved.puzzle) {
+          return { solution: saved.solution, puzzle: saved.puzzle };
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Generate new puzzle
     const sol = buildSolutionPyramid(3, 20);
     const mask = makeGivenMask(sol, 3);
     const puz = makePuzzleFromSolution(sol, mask);
@@ -157,6 +212,8 @@ export default function NumberPyramidPuzzle() {
   const [showWrongHighlights, setShowWrongHighlights] = useState<boolean>(false);
   const [hadFirstWrong, setHadFirstWrong] = useState<boolean>(false);
   const [checksThisPuzzle, setChecksThisPuzzle] = useState<number>(0);
+
+  const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   const lastCheckedSignatureRef = useRef<string>("");
 
@@ -180,6 +237,113 @@ export default function NumberPyramidPuzzle() {
     }
   }, [solvedCount, firstTryCount]);
 
+  // Restore other session data on mount
+  // ANTI-CHEAT: Timer keeps running even if page is refreshed!
+  // Session only resets after 5 minutes of inactivity
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("np_session_v1");
+      if (!raw) return;
+
+      const saved = JSON.parse(raw) as {
+        lastActivity?: number;
+        rows?: number;
+        difficulty?: number;
+        topMax?: number;
+        checksThisPuzzle?: number;
+        hadFirstWrong?: boolean;
+        showWrongHighlights?: boolean;
+      };
+
+      const now = Date.now();
+      const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+      // Only restore if session is recent (within 5 minutes)
+      if (saved.lastActivity && now - saved.lastActivity < SESSION_TIMEOUT) {
+        if (typeof saved.rows === "number") setRows(saved.rows);
+        if (typeof saved.difficulty === "number") setDifficulty(saved.difficulty);
+        if (typeof saved.topMax === "number") setTopMax(saved.topMax);
+        if (typeof saved.checksThisPuzzle === "number") setChecksThisPuzzle(saved.checksThisPuzzle);
+        if (typeof saved.hadFirstWrong === "boolean") setHadFirstWrong(saved.hadFirstWrong);
+        if (typeof saved.showWrongHighlights === "boolean") setShowWrongHighlights(saved.showWrongHighlights);
+      } else {
+        // Session expired, clear it
+        localStorage.removeItem("np_session_v1");
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Save session to localStorage whenever it changes + update last activity
+  useEffect(() => {
+    try {
+      const sessionData = {
+        sessionStartTime,
+        lastActivity: Date.now(), // Track when user was last active
+        solution,
+        puzzle,
+        rows,
+        difficulty,
+        topMax,
+        checksThisPuzzle,
+        hadFirstWrong,
+        showWrongHighlights,
+      };
+      localStorage.setItem("np_session_v1", JSON.stringify(sessionData));
+    } catch {
+      // ignore
+    }
+  }, [sessionStartTime, solution, puzzle, rows, difficulty, topMax, checksThisPuzzle, hadFirstWrong, showWrongHighlights]);
+
+  // Update last activity on any user interaction
+  useEffect(() => {
+    const updateActivity = () => {
+      try {
+        const raw = localStorage.getItem("np_session_v1");
+        if (raw) {
+          const saved = JSON.parse(raw);
+          saved.lastActivity = Date.now();
+          localStorage.setItem("np_session_v1", JSON.stringify(saved));
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener("click", updateActivity);
+    window.addEventListener("keydown", updateActivity);
+    window.addEventListener("touchstart", updateActivity);
+
+    return () => {
+      window.removeEventListener("click", updateActivity);
+      window.removeEventListener("keydown", updateActivity);
+      window.removeEventListener("touchstart", updateActivity);
+    };
+  }, []);
+
+  // Update elapsed time every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+      setElapsedSeconds(elapsed);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [sessionStartTime]);
+
+  // Close menu with Escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && menuOpen) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [menuOpen]);
+
   const labels = useMemo(
       () => ({
         title: "ZAHLENPYRAMIDE",
@@ -191,6 +355,7 @@ export default function NumberPyramidPuzzle() {
         peak: "Spitze max (≤)",
         newTask: "Neue Aufgabe",
         tryAgain: "Nochmal",
+        settings: "Einstellungen",
       }),
       []
   );
@@ -255,6 +420,8 @@ export default function NumberPyramidPuzzle() {
     setSolution(sol);
     setPuzzle(puz);
     resetPerPuzzleState();
+
+    // Timer keeps running across puzzles - only resets after 5 min inactivity
   }
 
   function onSolved() {
@@ -343,12 +510,24 @@ export default function NumberPyramidPuzzle() {
     setStatusText("Punkte zurückgesetzt!");
   }
 
-  const rowCount = puzzle.length;
   const wrongKey = new Set(wrongPositions.map(([r, c]) => `${r}-${c}`));
 
   return (
-      <div className="max-w-5xl mx-auto p-4 md:p-6">
-        <div className="rounded-3xl shadow-lg overflow-hidden relative bg-gradient-to-br from-sky-50 via-pink-50 to-emerald-50 border">
+      <>
+        {/* Hamburger Menu Button - Fixed Top Right */}
+        <button
+            onClick={() => setMenuOpen(true)}
+            className="fixed top-4 right-4 z-30 px-3 py-3 rounded-2xl bg-white border shadow-lg hover:shadow-xl transition-all flex items-center"
+            title={labels.settings}
+            aria-label={labels.settings}
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+
+        <div className="max-w-5xl mx-auto p-4 md:p-6">
+          <div className="rounded-3xl shadow-lg overflow-hidden relative bg-gradient-to-br from-sky-50 via-pink-50 to-emerald-50 border">
           {celebrate && (
               <div className="absolute inset-0 pointer-events-none overflow-hidden">
                 {Array.from({ length: 200 }).map((_, i) => {
@@ -506,75 +685,104 @@ export default function NumberPyramidPuzzle() {
                     </div>
                 ))}
               </div>
-
-              <div className="mt-4 text-sm text-gray-700 flex items-center justify-between gap-2 flex-wrap">
-                <div className="px-3 py-2 rounded-2xl bg-white/70 border">
-                  🧮 {rowCount} Reihen • {totalCells(rowCount)} Steine
-                </div>
-                <div className="px-3 py-2 rounded-2xl bg-white/70 border">
-                  {showWrongHighlights ? "🔴 Fehler-Markierung: AN" : "🫣 Fehler-Markierung: AUS"}
-                </div>
-              </div>
-
-              <div className="mt-3 text-xs text-gray-600">
-                (Erst 😕 Hinweis, dann beim nächsten Versuch 🔴 – und Rot verschwindet sofort, wenn's richtig ist.)
-              </div>
             </div>
           </div>
 
-          <div className="px-4 md:px-6 pb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <label className="rounded-2xl bg-white/70 border p-3">
-                <div className="text-sm font-extrabold">📏 {labels.rows}</div>
-                <input
-                    type="number"
-                    min={3}
-                    max={20}
-                    value={rows}
-                    onChange={(e) => setRows(Number(e.target.value))}
-                    className="mt-2 w-full bg-white/70 rounded-xl border  px-3 py-2 text-lg font-extrabold outline-none"
+          {/* Settings Menu Overlay */}
+          {menuOpen && (
+              <>
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 animate-fade-in"
+                    onClick={() => setMenuOpen(false)}
                 />
-              </label>
+                <div className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-gradient-to-br from-sky-50 via-pink-50 to-emerald-50 shadow-2xl z-50 overflow-y-auto animate-slide-in-right">
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
+                        <span className="text-3xl">⚙️</span>
+                        {labels.settings}
+                      </h2>
+                      <button
+                          onClick={() => setMenuOpen(false)}
+                          className="px-3 py-3 rounded-2xl bg-white/70 border shadow-sm hover:bg-white transition-colors"
+                          aria-label="Schließen"
+                      >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
 
-              <label className="rounded-2xl bg-white/70 border p-3">
-                <div className="text-sm font-extrabold">💪 {labels.diff}</div>
-                <select
-                    value={difficulty}
-                    onChange={(e) => setDifficulty(Number(e.target.value))}
-                    className="mt-2 w-full bg-white/70 rounded-xl border  px-3 py-2 text-lg font-extrabold outline-none"
-                >
-                  {[1, 2, 3, 4, 5].map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                  ))}
-                </select>
-              </label>
+                    {/* Timer Display in Menu */}
+                    <div className="mb-6 rounded-2xl bg-white/70 border p-4 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="text-4xl">⏱️</div>
+                        <div>
+                          <div className="text-xs font-bold text-gray-600">Gesamte Session-Zeit</div>
+                          <div className="text-3xl font-extrabold text-gray-900">{formatTime(elapsedSeconds)}</div>
+                        </div>
+                      </div>
+                    </div>
 
-              <label className="rounded-2xl bg-white/70 border p-3">
-                <div className="text-sm font-extrabold">🏔️ {labels.peak}</div>
-                <input
-                    type="number"
-                    min={1}
-                    value={topMax}
-                    onChange={(e) => setTopMax(Number(e.target.value))}
-                    className="mt-2 w-full bg-white/70 rounded-xl border  px-3 py-2 text-lg font-extrabold outline-none"
-                />
-              </label>
-            </div>
+                    <div className="space-y-4">
+                      <label className="block rounded-2xl bg-white/70 border p-4">
+                        <div className="text-sm font-extrabold mb-2">📏 {labels.rows}</div>
+                        <input
+                            type="number"
+                            min={3}
+                            max={20}
+                            value={rows}
+                            onChange={(e) => setRows(Number(e.target.value))}
+                            className="w-full bg-white/70 rounded-xl border px-3 py-2 text-lg font-extrabold outline-none"
+                        />
+                      </label>
 
-            <div className="mt-3 flex justify-center">
-              <button
-                  onClick={resetStats}
-                  className="px-4 py-3 rounded-2xl bg-white/70 border shadow-sm font-extrabold"
-                  title={labels.reset}
-              >
-                <span className="text-2xl">🧼</span>
-                <span className="ml-2">{labels.reset}</span>
-              </button>
-            </div>
+                      <label className="block rounded-2xl bg-white/70 border p-4">
+                        <div className="text-sm font-extrabold mb-2">💪 {labels.diff}</div>
+                        <select
+                            value={difficulty}
+                            onChange={(e) => setDifficulty(Number(e.target.value))}
+                            className="w-full bg-white/70 rounded-xl border px-3 py-2 text-lg font-extrabold outline-none"
+                        >
+                          {[1, 2, 3, 4, 5].map((n) => (
+                              <option key={n} value={n}>
+                                {n}
+                              </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="block rounded-2xl bg-white/70 border p-4">
+                        <div className="text-sm font-extrabold mb-2">🏔️ {labels.peak}</div>
+                        <input
+                            type="number"
+                            min={1}
+                            value={topMax}
+                            onChange={(e) => setTopMax(Number(e.target.value))}
+                            className="w-full bg-white/70 rounded-xl border px-3 py-2 text-lg font-extrabold outline-none"
+                        />
+                      </label>
+
+                      <div className="pt-4">
+                        <button
+                            onClick={() => {
+                              resetStats();
+                              setMenuOpen(false);
+                            }}
+                            className="w-full px-4 py-3 rounded-2xl bg-white/70 border shadow-sm font-extrabold hover:bg-white transition-colors"
+                            title={labels.reset}
+                        >
+                          <span className="text-2xl">🧼</span>
+                          <span className="ml-2">{labels.reset}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+          )}
           </div>
         </div>
-      </div>
+      </>
   );
 }
