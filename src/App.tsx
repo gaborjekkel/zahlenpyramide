@@ -146,7 +146,7 @@ export default function NumberPyramidPuzzle() {
   const [firstTryCount, setFirstTryCount] = useState<number>(0);
 
   // Session timer - load from localStorage immediately
-  const [sessionStartTime] = useState<number>(() => {
+  const [sessionStartTime, setSessionStartTime] = useState<number>(() => {
     try {
       const raw = localStorage.getItem("np_session_v1");
       if (raw) {
@@ -157,6 +157,9 @@ export default function NumberPyramidPuzzle() {
         // If last activity was within 5 minutes, restore session
         if (saved.lastActivity && now - saved.lastActivity < SESSION_TIMEOUT) {
           return saved.sessionStartTime || Date.now();
+        } else {
+          // Session expired - clear old data
+          localStorage.removeItem("np_session_v1");
         }
       }
     } catch {
@@ -322,11 +325,29 @@ export default function NumberPyramidPuzzle() {
     };
   }, []);
 
-  // Update elapsed time every second
+  // Update elapsed time every second and check for session timeout
   useEffect(() => {
     const interval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+      const now = Date.now();
+      const elapsed = Math.floor((now - sessionStartTime) / 1000);
       setElapsedSeconds(elapsed);
+
+      // Check if session has been inactive for too long (e.g., page left open but idle)
+      try {
+        const raw = localStorage.getItem("np_session_v1");
+        if (raw) {
+          const saved = JSON.parse(raw);
+          const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+          if (saved.lastActivity && now - saved.lastActivity > SESSION_TIMEOUT) {
+            // Session expired - reset timer
+            const newStartTime = Date.now();
+            setSessionStartTime(newStartTime);
+            localStorage.removeItem("np_session_v1");
+          }
+        }
+      } catch {
+        // ignore
+      }
     }, 1000);
 
     return () => clearInterval(interval);
@@ -517,11 +538,11 @@ export default function NumberPyramidPuzzle() {
         {/* Hamburger Menu Button - Fixed Top Right */}
         <button
             onClick={() => setMenuOpen(true)}
-            className="fixed top-4 right-4 z-30 px-3 py-3 rounded-2xl bg-white border shadow-lg hover:shadow-xl transition-all flex items-center"
+            className="fixed top-3 right-3 sm:top-4 sm:right-4 z-30 p-2 sm:px-3 sm:py-3 rounded-xl sm:rounded-2xl bg-white border shadow-lg hover:shadow-xl transition-all flex items-center"
             title={labels.settings}
             aria-label={labels.settings}
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
@@ -598,42 +619,24 @@ export default function NumberPyramidPuzzle() {
           )}
 
           <div className="p-4 md:p-6">
-            <div className="flex items-center gap-3">
-              <div className="text-5xl">🧱</div>
-              <div>
-                <div className="text-2xl font-extrabold text-gray-900">{labels.title}</div>
-                <div className="text-sm text-gray-700">
+            <div className="flex items-center gap-2 sm:gap-3 pr-12 sm:pr-0">
+              <div className="text-4xl sm:text-5xl">🧱</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xl sm:text-2xl font-extrabold text-gray-900">{labels.title}</div>
+                <div className="text-xs sm:text-sm text-gray-700">
                   {statusEmoji} {statusText}
                 </div>
               </div>
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-2 items-center justify-center">
-              <div className="px-4 py-3 rounded-2xl bg-white/70 border shadow-sm">
-                <div className="flex items-center gap-2">
-                  <div className="text-2xl">🧩</div>
-                  <div>
-                    <div className="text-xs font-bold text-gray-600">{labels.solved}</div>
-                    <div className="font-extrabold text-xl">{solvedCount}</div>
-                  </div>
-                </div>
-              </div>
-              <div className="px-4 py-3 rounded-2xl bg-white/70 border shadow-sm">
-                <div className="flex items-center gap-2">
-                  <div className="text-2xl">🌟</div>
-                  <div>
-                    <div className="text-xs font-bold text-gray-600">{labels.firstTry}</div>
-                    <div className="font-extrabold text-xl">{firstTryCount}</div>
-                  </div>
-                </div>
-              </div>
+            <div className="mt-5 flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-center">
               <button
                   onClick={newPuzzle}
-                  className="ml-auto px-4 py-3 rounded-2xl bg-emerald-500 text-white font-extrabold shadow-md border border-emerald-600"
+                  className="px-4 py-3 rounded-2xl bg-emerald-500 text-white font-extrabold shadow-md border border-emerald-600 flex items-center justify-center"
                   title={labels.newTask}
               >
-                <span className="text-2xl">🎲</span>
-                <span className="ml-2">{labels.newTask}</span>
+                <span className="text-xl sm:text-2xl">🎲</span>
+                <span className="ml-2 text-sm sm:text-base">{labels.newTask}</span>
               </button>
               <button
                   onClick={() => {
@@ -643,11 +646,11 @@ export default function NumberPyramidPuzzle() {
                     setShowWrongHighlights(false);
                     setHadFirstWrong(false);
                   }}
-                  className="px-4 py-3 rounded-2xl bg-white/70 border font-extrabold shadow-sm"
+                  className="px-4 py-3 rounded-2xl bg-white/70 border font-extrabold shadow-sm flex items-center justify-center"
                   title={labels.tryAgain}
               >
-                <span className="text-2xl">🔄</span>
-                <span className="ml-2">{labels.tryAgain}</span>
+                <span className="text-xl sm:text-2xl">🔄</span>
+                <span className="ml-2 text-sm sm:text-base">{labels.tryAgain}</span>
               </button>
             </div>
           </div>
@@ -663,19 +666,19 @@ export default function NumberPyramidPuzzle() {
                             <div
                                 key={`${r}-${c}`}
                                 className={
-                                    "w-16 h-14 md:w-20 md:h-16 rounded-2xl border  flex items-center justify-center " +
+                                    "w-12 h-11 sm:w-16 sm:h-14 md:w-20 md:h-16 rounded-xl sm:rounded-2xl border flex items-center justify-center " +
                                     (cell.given ? "bg-gradient-to-br from-amber-100 to-amber-50" : "bg-white") +
                                     (isWrong ? " border-red-400 shadow-[0_0_0_3px_rgba(248,113,113,0.35)]" : "")
                                 }
                             >
                               {cell.given ? (
-                                  <span className="text-xl md:text-2xl font-extrabold text-gray-900">{cell.value}</span>
+                                  <span className="text-base sm:text-xl md:text-2xl font-extrabold text-gray-900">{cell.value}</span>
                               ) : (
                                   <input
                                       inputMode="numeric"
                                       value={cell.input}
                                       onChange={(e) => updateInput(r, c, e.target.value)}
-                                      className="w-full h-full text-center rounded-2xl outline-none text-xl md:text-2xl font-extrabold bg-transparent"
+                                      className="w-full h-full text-center rounded-xl sm:rounded-2xl outline-none text-base sm:text-xl md:text-2xl font-extrabold bg-transparent"
                                       aria-label={`Reihe ${r + 1}, Feld ${c + 1}`}
                                   />
                               )}
@@ -696,7 +699,7 @@ export default function NumberPyramidPuzzle() {
                     onClick={() => setMenuOpen(false)}
                 />
                 <div className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-gradient-to-br from-sky-50 via-pink-50 to-emerald-50 shadow-2xl z-50 overflow-y-auto animate-slide-in-right">
-                  <div className="p-6">
+                  <div className="p-6 pb-20">
                     <div className="flex items-center justify-between mb-6">
                       <h2 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
                         <span className="text-3xl">⚙️</span>
@@ -704,7 +707,7 @@ export default function NumberPyramidPuzzle() {
                       </h2>
                       <button
                           onClick={() => setMenuOpen(false)}
-                          className="px-3 py-3 rounded-2xl bg-white/70 border shadow-sm hover:bg-white transition-colors"
+                          className="px-3 py-3 rounded-2xl bg-white/70 border shadow-sm hover:bg-white transition-colors flex items-center"
                           aria-label="Schließen"
                       >
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -713,13 +716,38 @@ export default function NumberPyramidPuzzle() {
                       </button>
                     </div>
 
-                    {/* Timer Display in Menu */}
-                    <div className="mb-6 rounded-2xl bg-white/70 border p-4 shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <div className="text-4xl">⏱️</div>
-                        <div>
-                          <div className="text-xs font-bold text-gray-600">Gesamte Session-Zeit</div>
-                          <div className="text-3xl font-extrabold text-gray-900">{formatTime(elapsedSeconds)}</div>
+                    {/* Stats Display in Menu */}
+                    <div className="mb-6 space-y-3">
+                      {/* Timer */}
+                      <div className="rounded-2xl bg-white/70 border p-4 shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="text-4xl">⏱️</div>
+                          <div>
+                            <div className="text-xs font-bold text-gray-600">Gesamte Session-Zeit</div>
+                            <div className="text-3xl font-extrabold text-gray-900">{formatTime(elapsedSeconds)}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Gelöst and Erstes Mal */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-2xl bg-white/70 border p-4 shadow-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="text-3xl">🧩</div>
+                            <div>
+                              <div className="text-xs font-bold text-gray-600">{labels.solved}</div>
+                              <div className="text-2xl font-extrabold text-gray-900">{solvedCount}</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="rounded-2xl bg-white/70 border p-4 shadow-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="text-3xl">🌟</div>
+                            <div>
+                              <div className="text-xs font-bold text-gray-600">{labels.firstTry}</div>
+                              <div className="text-2xl font-extrabold text-gray-900">{firstTryCount}</div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -769,7 +797,7 @@ export default function NumberPyramidPuzzle() {
                               resetStats();
                               setMenuOpen(false);
                             }}
-                            className="w-full px-4 py-3 rounded-2xl bg-white/70 border shadow-sm font-extrabold hover:bg-white transition-colors"
+                            className="w-full px-4 py-3 rounded-2xl bg-white/70 border shadow-sm font-extrabold hover:bg-white transition-colors flex items-center justify-center"
                             title={labels.reset}
                         >
                           <span className="text-2xl">🧼</span>
