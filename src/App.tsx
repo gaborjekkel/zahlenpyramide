@@ -137,10 +137,43 @@ function getWrongPositions(puzzle: Puzzle, solution: number[][]) {
 }
 
 export default function NumberPyramidPuzzle() {
-  // defaults
-  const [rows, setRows] = useState<number>(3);
-  const [difficulty, setDifficulty] = useState<number>(3);
-  const [topMax, setTopMax] = useState<number>(20);
+  // Load user preferences from localStorage (persists across all sessions)
+  const [rows, setRows] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem("np_preferences_v1");
+      if (raw) {
+        const prefs = JSON.parse(raw) as { rows?: number };
+        if (typeof prefs.rows === "number") return clampInt(prefs.rows, 3, 20);
+      }
+    } catch {
+      // ignore
+    }
+    return 3;
+  });
+  const [difficulty, setDifficulty] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem("np_preferences_v1");
+      if (raw) {
+        const prefs = JSON.parse(raw) as { difficulty?: number };
+        if (typeof prefs.difficulty === "number") return clampInt(prefs.difficulty, 1, 5);
+      }
+    } catch {
+      // ignore
+    }
+    return 3;
+  });
+  const [topMax, setTopMax] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem("np_preferences_v1");
+      if (raw) {
+        const prefs = JSON.parse(raw) as { topMax?: number };
+        if (typeof prefs.topMax === "number" && prefs.topMax > 0) return prefs.topMax;
+      }
+    } catch {
+      // ignore
+    }
+    return 20;
+  });
 
   const [solvedCount, setSolvedCount] = useState<number>(0);
   const [firstTryCount, setFirstTryCount] = useState<number>(0);
@@ -240,6 +273,15 @@ export default function NumberPyramidPuzzle() {
     }
   }, [solvedCount, firstTryCount]);
 
+  // Save user preferences whenever they change (persists across all sessions)
+  useEffect(() => {
+    try {
+      localStorage.setItem("np_preferences_v1", JSON.stringify({ rows, difficulty, topMax }));
+    } catch {
+      // ignore
+    }
+  }, [rows, difficulty, topMax]);
+
   // Restore other session data on mount
   // ANTI-CHEAT: Timer keeps running even if page is refreshed!
   // Session only resets after 5 minutes of inactivity
@@ -250,9 +292,6 @@ export default function NumberPyramidPuzzle() {
 
       const saved = JSON.parse(raw) as {
         lastActivity?: number;
-        rows?: number;
-        difficulty?: number;
-        topMax?: number;
         checksThisPuzzle?: number;
         hadFirstWrong?: boolean;
         showWrongHighlights?: boolean;
@@ -263,9 +302,6 @@ export default function NumberPyramidPuzzle() {
 
       // Only restore if session is recent (within 5 minutes)
       if (saved.lastActivity && now - saved.lastActivity < SESSION_TIMEOUT) {
-        if (typeof saved.rows === "number") setRows(saved.rows);
-        if (typeof saved.difficulty === "number") setDifficulty(saved.difficulty);
-        if (typeof saved.topMax === "number") setTopMax(saved.topMax);
         if (typeof saved.checksThisPuzzle === "number") setChecksThisPuzzle(saved.checksThisPuzzle);
         if (typeof saved.hadFirstWrong === "boolean") setHadFirstWrong(saved.hadFirstWrong);
         if (typeof saved.showWrongHighlights === "boolean") setShowWrongHighlights(saved.showWrongHighlights);
@@ -286,9 +322,6 @@ export default function NumberPyramidPuzzle() {
         lastActivity: Date.now(), // Track when user was last active
         solution,
         puzzle,
-        rows,
-        difficulty,
-        topMax,
         checksThisPuzzle,
         hadFirstWrong,
         showWrongHighlights,
@@ -297,7 +330,7 @@ export default function NumberPyramidPuzzle() {
     } catch {
       // ignore
     }
-  }, [sessionStartTime, solution, puzzle, rows, difficulty, topMax, checksThisPuzzle, hadFirstWrong, showWrongHighlights]);
+  }, [sessionStartTime, solution, puzzle, checksThisPuzzle, hadFirstWrong, showWrongHighlights]);
 
   // Update last activity on any user interaction
   useEffect(() => {
