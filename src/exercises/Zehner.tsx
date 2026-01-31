@@ -84,11 +84,11 @@ export default function Zehner() {
   function getRange(range: string): { min: number; max: number } {
     switch (range) {
       case "0-20":
-        return { min: 0, max: 20 };
+        return { min: 0, max: 9 }; // Only single digits (no tens)
       case "0-100":
-        return { min: 0, max: 100 };
+        return { min: 10, max: 100 }; // Numbers with tens grouping
       default:
-        return { min: 0, max: 20 };
+        return { min: 0, max: 9 };
     }
   }
 
@@ -253,8 +253,8 @@ export default function Zehner() {
                   </>
                 ) : (
                   <>
-                    {/* For 0-20: Just show all as individual circles (no bundling) */}
-                    {Array.from({ length: tens * 10 + ones }).map((_, i) => (
+                    {/* For 0-20: Only single digit numbers (0-9), show as individual circles */}
+                    {Array.from({ length: ones }).map((_, i) => (
                       <div key={i} className="w-4 h-4 rounded-full bg-orange-600" />
                     ))}
                   </>
