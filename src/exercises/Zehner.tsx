@@ -9,6 +9,23 @@ function cleanNumericInput(next: string) {
   return cleaned.slice(0, 1);
 }
 
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function clampInt(n: unknown, min: number, max: number) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return min;
+  return Math.max(min, Math.min(max, Math.trunc(x)));
+}
+
 export default function Zehner() {
   const [numberRange, setNumberRange] = useState<string>(() => {
     try {
@@ -23,6 +40,19 @@ export default function Zehner() {
     return "0-20";
   });
 
+  const [printPages, setPrintPages] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem("zehner_preferences_v1");
+      if (raw) {
+        const prefs = JSON.parse(raw) as { printPages?: number };
+        if (typeof prefs.printPages === "number" && prefs.printPages > 0) return prefs.printPages;
+      }
+    } catch {
+      // ignore
+    }
+    return 1;
+  });
+
   const [tens, setTens] = useState<number>(0);
   const [ones, setOnes] = useState<number>(0);
   const [zInput, setZInput] = useState<string>("");
@@ -31,14 +61,39 @@ export default function Zehner() {
   const [statusText, setStatusText] = useState<string>("Zähle die Zehner (Z) und Einer (E)!");
   const [celebrate, setCelebrate] = useState<boolean>(false);
   const [solvedCount, setSolvedCount] = useState<number>(0);
+  const [firstTryCount, setFirstTryCount] = useState<number>(0);
+  const [checksThisPuzzle, setChecksThisPuzzle] = useState<number>(0);
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
+
+  // Session timer
+  const [sessionStartTime, setSessionStartTime] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem("zehner_session_v1");
+      if (raw) {
+        const saved = JSON.parse(raw) as { sessionStartTime?: number; lastActivity?: number };
+        const now = Date.now();
+        const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+        if (saved.lastActivity && now - saved.lastActivity < SESSION_TIMEOUT) {
+          return saved.sessionStartTime || Date.now();
+        } else {
+          localStorage.removeItem("zehner_session_v1");
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return Date.now();
+  });
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem("zehner_stats_v1");
       if (!raw) return;
-      const parsed = JSON.parse(raw) as { solved?: number };
+      const parsed = JSON.parse(raw) as { solved?: number; firstTry?: number };
       if (typeof parsed.solved === "number") setSolvedCount(parsed.solved);
+      if (typeof parsed.firstTry === "number") setFirstTryCount(parsed.firstTry);
     } catch {
       // ignore
     }
@@ -46,19 +101,84 @@ export default function Zehner() {
 
   useEffect(() => {
     try {
-      localStorage.setItem("zehner_stats_v1", JSON.stringify({ solved: solvedCount }));
+      localStorage.setItem("zehner_stats_v1", JSON.stringify({ solved: solvedCount, firstTry: firstTryCount }));
     } catch {
       // ignore
     }
-  }, [solvedCount]);
+  }, [solvedCount, firstTryCount]);
 
   useEffect(() => {
     try {
-      localStorage.setItem("zehner_preferences_v1", JSON.stringify({ numberRange }));
+      localStorage.setItem("zehner_preferences_v1", JSON.stringify({ numberRange, printPages }));
     } catch {
       // ignore
     }
-  }, [numberRange]);
+  }, [numberRange, printPages]);
+
+  // Update elapsed time every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const elapsed = Math.floor((now - sessionStartTime) / 1000);
+      setElapsedSeconds(elapsed);
+
+      try {
+        const raw = localStorage.getItem("zehner_session_v1");
+        if (raw) {
+          const saved = JSON.parse(raw);
+          const SESSION_TIMEOUT = 5 * 60 * 1000;
+          if (saved.lastActivity && now - saved.lastActivity > SESSION_TIMEOUT) {
+            const newStartTime = Date.now();
+            setSessionStartTime(newStartTime);
+            localStorage.removeItem("zehner_session_v1");
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [sessionStartTime]);
+
+  // Save session to localStorage
+  useEffect(() => {
+    try {
+      const sessionData = {
+        sessionStartTime,
+        lastActivity: Date.now(),
+      };
+      localStorage.setItem("zehner_session_v1", JSON.stringify(sessionData));
+    } catch {
+      // ignore
+    }
+  }, [sessionStartTime]);
+
+  // Update last activity on user interaction
+  useEffect(() => {
+    const updateActivity = () => {
+      try {
+        const raw = localStorage.getItem("zehner_session_v1");
+        if (raw) {
+          const saved = JSON.parse(raw);
+          saved.lastActivity = Date.now();
+          localStorage.setItem("zehner_session_v1", JSON.stringify(saved));
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener("click", updateActivity);
+    window.addEventListener("keydown", updateActivity);
+    window.addEventListener("touchstart", updateActivity);
+
+    return () => {
+      window.removeEventListener("click", updateActivity);
+      window.removeEventListener("keydown", updateActivity);
+      window.removeEventListener("touchstart", updateActivity);
+    };
+  }, []);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -75,8 +195,11 @@ export default function Zehner() {
     () => ({
       settings: "Einstellungen",
       solved: "Gelöst",
+      firstTry: "Erstes Mal",
       reset: "Zurücksetzen",
       numberRange: "Zahlenbereich",
+      printWorksheet: "Übungsblatt drucken",
+      printPagesLabel: "Anzahl Seiten",
     }),
     []
   );
@@ -104,12 +227,241 @@ export default function Zehner() {
     setStatusEmoji("🧠");
     setStatusText("Zähle die Zehner (Z) und Einer (E)!");
     setCelebrate(false);
+    setChecksThisPuzzle(0);
   }
 
   function resetStats() {
     setSolvedCount(0);
+    setFirstTryCount(0);
     setStatusEmoji("🧼");
     setStatusText("Punkte zurückgesetzt!");
+  }
+
+  function generatePrintableWorksheet() {
+    const pages = clampInt(printPages, 1, 10);
+    const exercisesPerPage = 15;
+    const totalExercises = pages * exercisesPerPage;
+
+    // Generate exercises
+    const exercises: Array<{ tens: number; ones: number; total: number }> = [];
+
+    try {
+      const range = getRange(numberRange);
+      for (let i = 0; i < totalExercises; i++) {
+        const number = randInt(range.min, range.max);
+        const t = Math.floor(number / 10);
+        const o = number % 10;
+        exercises.push({ tens: t, ones: o, total: number });
+      }
+    } catch (e) {
+      setStatusEmoji("😵‍💫");
+      setStatusText("Ups… Übungsblatt konnte nicht erstellt werden");
+      return;
+    }
+
+    // Create printable HTML
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      setStatusEmoji("⚠️");
+      setStatusText("Popup wurde blockiert. Bitte erlaube Popups.");
+      return;
+    }
+
+    const html = `
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zehner und Einer - Übungsblatt</title>
+  <style>
+    @media print {
+      @page { size: A4; margin: 1cm; }
+      body { margin: 0; padding: 0; }
+      .no-print { display: none !important; }
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 20px;
+      background: white;
+    }
+
+    .print-button {
+      display: block;
+      margin: 0 auto 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      font-weight: bold;
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .print-button:hover {
+      background: #059669;
+    }
+
+    .page {
+      page-break-after: always;
+      margin-bottom: 30px;
+    }
+
+    .page:last-child {
+      page-break-after: auto;
+    }
+
+    .exercises-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .exercise {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      background: #fafafa;
+      page-break-inside: avoid;
+    }
+
+    .exercise-number {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .visual-container {
+      display: flex;
+      justify-content: center;
+      align-items: end;
+      gap: 4px;
+      margin-bottom: 12px;
+      min-height: 100px;
+      flex-wrap: wrap;
+    }
+
+    ${numberRange === "0-100" ? `
+    .ten-bundle {
+      position: relative;
+      display: flex;
+      gap: 0.5px;
+    }
+
+    .stick {
+      width: 1px;
+      height: 50px;
+      background: #ea580c;
+      border-radius: 1px;
+    }
+
+    .band {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: #dc2626;
+      transform: translateY(-50%);
+    }
+    ` : ''}
+
+    .one-circle {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ea580c;
+    }
+
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .input-box {
+      text-align: center;
+    }
+
+    .input-label {
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .input-field {
+      width: 100%;
+      height: 40px;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <button class="print-button no-print" onclick="window.print()">🖨️ Drucken / Als PDF speichern</button>
+
+  ${Array.from({ length: pages }, (_, pageIdx) => {
+    const startIdx = pageIdx * exercisesPerPage;
+    const endIdx = startIdx + exercisesPerPage;
+    const pageExercises = exercises.slice(startIdx, endIdx);
+
+    return `
+      <div class="page">
+        <div class="exercises-grid">
+          ${pageExercises.map((ex, idx) => `
+            <div class="exercise">
+              <div class="exercise-number">Aufgabe ${startIdx + idx + 1}</div>
+              <div class="visual-container">
+                ${numberRange === "0-100" ? `
+                  ${Array.from({ length: ex.tens }).map(() => `
+                    <div class="ten-bundle">
+                      ${Array.from({ length: 10 }).map(() => `<div class="stick"></div>`).join('')}
+                      <div class="band"></div>
+                    </div>
+                  `).join('')}
+                  ${Array.from({ length: ex.ones }).map(() => `<div class="one-circle"></div>`).join('')}
+                ` : `
+                  ${Array.from({ length: ex.total }).map(() => `<div class="one-circle"></div>`).join('')}
+                `}
+              </div>
+              <div class="input-grid">
+                <div class="input-box">
+                  <div class="input-label">Z</div>
+                  <div class="input-field"></div>
+                </div>
+                <div class="input-box">
+                  <div class="input-label">E</div>
+                  <div class="input-field"></div>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('')}
+</body>
+</html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    setStatusEmoji("🖨️");
+    setStatusText("Übungsblatt geöffnet!");
   }
 
   function checkAnswer() {
@@ -127,6 +479,9 @@ export default function Zehner() {
       setStatusText("SUPER! Das ist richtig! 🌈");
       setCelebrate(true);
       setSolvedCount((x) => x + 1);
+      if (checksThisPuzzle === 0) {
+        setFirstTryCount((x) => x + 1);
+      }
       setTimeout(() => {
         setCelebrate(false);
         newPuzzle();
@@ -134,6 +489,7 @@ export default function Zehner() {
     } else {
       setStatusEmoji("😕");
       setStatusText("Hmm… schau nochmal genau hin!");
+      setChecksThisPuzzle((x) => x + 1);
     }
   }
 
@@ -334,13 +690,36 @@ export default function Zehner() {
                   </div>
 
                   {/* Stats Display */}
-                  <div className="mb-6">
+                  <div className="mb-6 space-y-3">
+                    {/* Timer */}
                     <div className="rounded-2xl bg-white/70 border p-4 shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="text-3xl">🧩</div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-4xl">⏱️</div>
                         <div>
-                          <div className="text-xs font-bold text-gray-600">{labels.solved}</div>
-                          <div className="text-2xl font-extrabold text-gray-900">{solvedCount}</div>
+                          <div className="text-xs font-bold text-gray-600">Gesamte Session-Zeit</div>
+                          <div className="text-3xl font-extrabold text-gray-900">{formatTime(elapsedSeconds)}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Gelöst and Erstes Mal */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-2xl bg-white/70 border p-4 shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="text-3xl">🧩</div>
+                          <div>
+                            <div className="text-xs font-bold text-gray-600">{labels.solved}</div>
+                            <div className="text-2xl font-extrabold text-gray-900">{solvedCount}</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl bg-white/70 border p-4 shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="text-3xl">🌟</div>
+                          <div>
+                            <div className="text-xs font-bold text-gray-600">{labels.firstTry}</div>
+                            <div className="text-2xl font-extrabold text-gray-900">{firstTryCount}</div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -359,7 +738,29 @@ export default function Zehner() {
                       </select>
                     </label>
 
-                    <div className="pt-4">
+                    <label className="block rounded-2xl bg-white/70 border p-4">
+                      <div className="text-sm font-extrabold mb-2">📄 {labels.printPagesLabel}</div>
+                      <input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={printPages}
+                        onChange={(e) => setPrintPages(Number(e.target.value))}
+                        className="w-full bg-white/70 rounded-xl border px-3 py-2 text-lg font-extrabold outline-none"
+                      />
+                    </label>
+
+                    <div className="pt-4 space-y-3">
+                      <button
+                        onClick={() => {
+                          generatePrintableWorksheet();
+                        }}
+                        className="w-full px-4 py-3 rounded-2xl bg-emerald-500 text-white border border-emerald-600 shadow-sm font-extrabold hover:bg-emerald-600 transition-colors flex items-center justify-center"
+                        title={labels.printWorksheet}
+                      >
+                        <span className="text-2xl">🖨️</span>
+                        <span className="ml-2">{labels.printWorksheet}</span>
+                      </button>
                       <button
                         onClick={() => {
                           resetStats();
