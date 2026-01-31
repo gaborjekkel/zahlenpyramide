@@ -344,14 +344,13 @@ export default function Zehner() {
     .visual-container {
       display: flex;
       justify-content: center;
-      align-items: end;
+      align-items: flex-end;
       gap: 4px;
       margin-bottom: 12px;
-      min-height: 100px;
+      min-height: 80px;
       flex-wrap: wrap;
     }
 
-    ${numberRange === "0-100" ? `
     .ten-bundle {
       position: relative;
       display: flex;
@@ -359,7 +358,7 @@ export default function Zehner() {
     }
 
     .stick {
-      width: 1px;
+      width: 2px;
       height: 50px;
       background: #ea580c;
       border-radius: 1px;
@@ -374,7 +373,6 @@ export default function Zehner() {
       background: #dc2626;
       transform: translateY(-50%);
     }
-    ` : ''}
 
     .one-circle {
       width: 8px;
@@ -383,30 +381,35 @@ export default function Zehner() {
       background: #ea580c;
     }
 
-    .input-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
+    .input-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 2px;
     }
 
     .input-box {
-      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     .input-label {
-      font-size: 12px;
+      font-size: 10px;
       font-weight: bold;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
+      color: #666;
     }
 
     .input-field {
-      width: 100%;
-      height: 40px;
-      border: 2px solid #ccc;
-      border-radius: 8px;
-      font-size: 20px;
+      width: 35px;
+      height: 35px;
+      border: 2px solid #333;
+      border-radius: 4px;
+      font-size: 18px;
       font-weight: bold;
       text-align: center;
+      background: white;
     }
   </style>
 </head>
@@ -421,34 +424,47 @@ export default function Zehner() {
     return `
       <div class="page">
         <div class="exercises-grid">
-          ${pageExercises.map((ex, idx) => `
-            <div class="exercise">
-              <div class="exercise-number">Aufgabe ${startIdx + idx + 1}</div>
-              <div class="visual-container">
-                ${numberRange === "0-100" ? `
-                  ${Array.from({ length: ex.tens }).map(() => `
-                    <div class="ten-bundle">
-                      ${Array.from({ length: 10 }).map(() => `<div class="stick"></div>`).join('')}
-                      <div class="band"></div>
-                    </div>
-                  `).join('')}
-                  ${Array.from({ length: ex.ones }).map(() => `<div class="one-circle"></div>`).join('')}
-                ` : `
-                  ${Array.from({ length: ex.total }).map(() => `<div class="one-circle"></div>`).join('')}
-                `}
-              </div>
-              <div class="input-grid">
-                <div class="input-box">
-                  <div class="input-label">Z</div>
-                  <div class="input-field"></div>
+          ${pageExercises.map((ex, idx) => {
+            let visualHTML = '';
+            if (numberRange === "0-100") {
+              // Show bundles for tens
+              for (let t = 0; t < ex.tens; t++) {
+                visualHTML += '<div class="ten-bundle">';
+                for (let s = 0; s < 10; s++) {
+                  visualHTML += '<div class="stick"></div>';
+                }
+                visualHTML += '<div class="band"></div></div>';
+              }
+              // Show circles for ones
+              for (let o = 0; o < ex.ones; o++) {
+                visualHTML += '<div class="one-circle"></div>';
+              }
+            } else {
+              // Show all as circles for 0-20
+              for (let i = 0; i < ex.total; i++) {
+                visualHTML += '<div class="one-circle"></div>';
+              }
+            }
+
+            return `
+              <div class="exercise">
+                <div class="exercise-number">Aufgabe ${startIdx + idx + 1}</div>
+                <div class="visual-container">
+                  ${visualHTML}
                 </div>
-                <div class="input-box">
-                  <div class="input-label">E</div>
-                  <div class="input-field"></div>
+                <div class="input-row">
+                  <div class="input-box">
+                    <div class="input-label">Z</div>
+                    <div class="input-field"></div>
+                  </div>
+                  <div class="input-box">
+                    <div class="input-label">E</div>
+                    <div class="input-field"></div>
+                  </div>
                 </div>
               </div>
-            </div>
-          `).join('')}
+            `;
+          }).join('')}
         </div>
       </div>
     `;
