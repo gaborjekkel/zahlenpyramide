@@ -416,59 +416,63 @@ export default function Zehner() {
 <body>
   <button class="print-button no-print" onclick="window.print()">🖨️ Drucken / Als PDF speichern</button>
 
-  ${Array.from({ length: pages }, (_, pageIdx) => {
-    const startIdx = pageIdx * exercisesPerPage;
-    const endIdx = startIdx + exercisesPerPage;
-    const pageExercises = exercises.slice(startIdx, endIdx);
+${(() => {
+    let pagesHTML = '';
+    for (let pageIdx = 0; pageIdx < pages; pageIdx++) {
+      const startIdx = pageIdx * exercisesPerPage;
+      const endIdx = startIdx + exercisesPerPage;
+      const pageExercises = exercises.slice(startIdx, endIdx);
 
-    return `
-      <div class="page">
-        <div class="exercises-grid">
-          ${pageExercises.map((ex, idx) => {
-            let visualHTML = '';
-            if (numberRange === "0-100") {
-              // Show bundles for tens
-              for (let t = 0; t < ex.tens; t++) {
-                visualHTML += '<div class="ten-bundle">';
-                for (let s = 0; s < 10; s++) {
-                  visualHTML += '<div class="stick"></div>';
-                }
-                visualHTML += '<div class="band"></div></div>';
-              }
-              // Show circles for ones
-              for (let o = 0; o < ex.ones; o++) {
-                visualHTML += '<div class="one-circle"></div>';
-              }
-            } else {
-              // Show all as circles for 0-20
-              for (let i = 0; i < ex.total; i++) {
-                visualHTML += '<div class="one-circle"></div>';
-              }
+      pagesHTML += '<div class="page"><div class="exercises-grid">';
+
+      for (let i = 0; i < pageExercises.length; i++) {
+        const ex = pageExercises[i];
+        let visualHTML = '';
+
+        if (numberRange === "0-100") {
+          // Show bundles for tens
+          for (let t = 0; t < ex.tens; t++) {
+            visualHTML += '<div class="ten-bundle">';
+            for (let s = 0; s < 10; s++) {
+              visualHTML += '<div class="stick"></div>';
             }
+            visualHTML += '<div class="band"></div></div>';
+          }
+          // Show circles for ones
+          for (let o = 0; o < ex.ones; o++) {
+            visualHTML += '<div class="one-circle"></div>';
+          }
+        } else {
+          // Show all as circles for 0-20
+          for (let c = 0; c < ex.total; c++) {
+            visualHTML += '<div class="one-circle"></div>';
+          }
+        }
 
-            return `
-              <div class="exercise">
-                <div class="exercise-number">Aufgabe ${startIdx + idx + 1}</div>
-                <div class="visual-container">
-                  ${visualHTML}
-                </div>
-                <div class="input-row">
-                  <div class="input-box">
-                    <div class="input-label">Z</div>
-                    <div class="input-field"></div>
-                  </div>
-                  <div class="input-box">
-                    <div class="input-label">E</div>
-                    <div class="input-field"></div>
-                  </div>
-                </div>
+        pagesHTML += `
+          <div class="exercise">
+            <div class="exercise-number">Aufgabe ${startIdx + i + 1}</div>
+            <div class="visual-container">
+              ${visualHTML}
+            </div>
+            <div class="input-row">
+              <div class="input-box">
+                <div class="input-label">Z</div>
+                <div class="input-field"></div>
               </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
-    `;
-  }).join('')}
+              <div class="input-box">
+                <div class="input-label">E</div>
+                <div class="input-field"></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      pagesHTML += '</div></div>';
+    }
+    return pagesHTML;
+  })()}
 </body>
 </html>
     `;
