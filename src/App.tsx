@@ -174,6 +174,18 @@ export default function NumberPyramidPuzzle() {
     }
     return 20;
   });
+  const [printPages, setPrintPages] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem("np_preferences_v1");
+      if (raw) {
+        const prefs = JSON.parse(raw) as { printPages?: number };
+        if (typeof prefs.printPages === "number" && prefs.printPages > 0) return prefs.printPages;
+      }
+    } catch {
+      // ignore
+    }
+    return 1;
+  });
 
   const [solvedCount, setSolvedCount] = useState<number>(0);
   const [firstTryCount, setFirstTryCount] = useState<number>(0);
@@ -276,11 +288,11 @@ export default function NumberPyramidPuzzle() {
   // Save user preferences whenever they change (persists across all sessions)
   useEffect(() => {
     try {
-      localStorage.setItem("np_preferences_v1", JSON.stringify({ rows, difficulty, topMax }));
+      localStorage.setItem("np_preferences_v1", JSON.stringify({ rows, difficulty, topMax, printPages }));
     } catch {
       // ignore
     }
-  }, [rows, difficulty, topMax]);
+  }, [rows, difficulty, topMax, printPages]);
 
   // Restore other session data on mount
   // ANTI-CHEAT: Timer keeps running even if page is refreshed!
@@ -410,6 +422,8 @@ export default function NumberPyramidPuzzle() {
         newTask: "Neue Aufgabe",
         tryAgain: "Nochmal",
         settings: "Einstellungen",
+        printWorksheet: "Übungsblatt drucken",
+        printPagesLabel: "Anzahl Seiten",
       }),
       []
   );
@@ -562,6 +576,190 @@ export default function NumberPyramidPuzzle() {
     setFirstTryCount(0);
     setStatusEmoji("🧼");
     setStatusText("Punkte zurückgesetzt!");
+  }
+
+  function generatePrintableWorksheet() {
+    const v = validateSettings();
+    if (!v.ok) {
+      setStatusEmoji("⚠️");
+      setStatusText(v.msg);
+      return;
+    }
+
+    const pages = clampInt(printPages, 1, 10);
+    const exercisesPerPage = 15;
+    const totalExercises = pages * exercisesPerPage;
+
+    // Generate exercises for all pages
+    const exercises: Array<{ solution: number[][]; puzzle: Puzzle }> = [];
+
+    try {
+      for (let i = 0; i < totalExercises; i++) {
+        const sol = buildSolutionPyramid(v.r, v.tMax);
+        const mask = makeGivenMask(sol, v.diff);
+        const puz = makePuzzleFromSolution(sol, mask);
+        exercises.push({ solution: sol, puzzle: puz });
+      }
+    } catch (e) {
+      setStatusEmoji("😵‍💫");
+      setStatusText((e as Error)?.message || "Ups… Übungsblatt konnte nicht erstellt werden");
+      return;
+    }
+
+    // Create printable HTML
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      setStatusEmoji("⚠️");
+      setStatusText("Popup wurde blockiert. Bitte erlaube Popups.");
+      return;
+    }
+
+    const html = `
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zahlenpyramide - Übungsblatt</title>
+  <style>
+    @media print {
+      @page { size: A4; margin: 1cm; }
+      body { margin: 0; padding: 0; }
+      .no-print { display: none !important; }
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 20px;
+      background: white;
+    }
+
+    .print-button {
+      display: block;
+      margin: 0 auto 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      font-weight: bold;
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .print-button:hover {
+      background: #059669;
+    }
+
+    .page {
+      page-break-after: always;
+      margin-bottom: 30px;
+    }
+
+    .page:last-child {
+      page-break-after: auto;
+    }
+
+    .exercises-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .exercise {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      background: #fafafa;
+      page-break-inside: avoid;
+    }
+
+    .exercise-number {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .pyramid {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .pyramid-row {
+      display: flex;
+      gap: 4px;
+    }
+
+    .cell {
+      width: 32px;
+      height: 32px;
+      border: 1px solid #666;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+      background: white;
+    }
+
+    .cell.given {
+      background: #fef3c7;
+    }
+
+
+  </style>
+</head>
+<body>
+  <button class="print-button no-print" onclick="window.print()">🖨️ Drucken / Als PDF speichern</button>
+
+  ${Array.from({ length: pages }, (_, pageIdx) => {
+    const startIdx = pageIdx * exercisesPerPage;
+    const endIdx = startIdx + exercisesPerPage;
+    const pageExercises = exercises.slice(startIdx, endIdx);
+
+    return `
+      <div class="page">
+        <div class="exercises-grid">
+          ${pageExercises.map((ex, idx) => `
+            <div class="exercise">
+              <div class="exercise-number">Aufgabe ${startIdx + idx + 1}</div>
+              <div class="pyramid">
+                ${ex.puzzle.map((row) => `
+                  <div class="pyramid-row">
+                    ${row.map((cell) => `
+                      <div class="cell ${cell.given ? 'given' : ''}">
+                        ${cell.given ? cell.value : ''}
+                      </div>
+                    `).join('')}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('')}
+</body>
+</html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    setStatusEmoji("🖨️");
+    setStatusText("Übungsblatt geöffnet!");
   }
 
   const wrongKey = new Set(wrongPositions.map(([r, c]) => `${r}-${c}`));
@@ -824,7 +1022,29 @@ export default function NumberPyramidPuzzle() {
                         />
                       </label>
 
-                      <div className="pt-4">
+                      <label className="block rounded-2xl bg-white/70 border p-4">
+                        <div className="text-sm font-extrabold mb-2">📄 {labels.printPagesLabel}</div>
+                        <input
+                            type="number"
+                            min={1}
+                            max={10}
+                            value={printPages}
+                            onChange={(e) => setPrintPages(Number(e.target.value))}
+                            className="w-full bg-white/70 rounded-xl border px-3 py-2 text-lg font-extrabold outline-none"
+                        />
+                      </label>
+
+                      <div className="pt-4 space-y-3">
+                        <button
+                            onClick={() => {
+                              generatePrintableWorksheet();
+                            }}
+                            className="w-full px-4 py-3 rounded-2xl bg-emerald-500 text-white border border-emerald-600 shadow-sm font-extrabold hover:bg-emerald-600 transition-colors flex items-center justify-center"
+                            title={labels.printWorksheet}
+                        >
+                          <span className="text-2xl">🖨️</span>
+                          <span className="ml-2">{labels.printWorksheet}</span>
+                        </button>
                         <button
                             onClick={() => {
                               resetStats();
