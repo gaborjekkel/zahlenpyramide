@@ -155,82 +155,53 @@ export default function Zehner() {
           </div>
 
           <div className="px-4 md:px-6 pb-6">
-            <div className="rounded-3xl bg-white/70 border p-4 md:p-6">
-              <div className="text-center mb-4">
-                <div className="text-sm font-bold text-gray-600 mb-2">Zahl:</div>
-                <div className="text-6xl font-extrabold text-gray-900">{totalNumber}</div>
+            <div className="rounded-3xl bg-white/70 border p-6 md:p-8">
+              {/* Number display */}
+              <div className="text-center mb-8">
+                <div className="inline-block px-8 py-4 bg-white rounded-2xl border-2 border-gray-300">
+                  <div className="text-7xl md:text-8xl font-extrabold text-gray-900">{totalNumber}</div>
+                </div>
               </div>
 
-              {/* Visual representation */}
-              <div className="flex flex-col items-center gap-6 mb-6">
-                {/* Tens groups */}
-                {tens > 0 && (
+              {/* Input fields in grid layout like worksheet */}
+              <div className="max-w-sm mx-auto">
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Z field */}
                   <div>
-                    <div className="text-sm font-bold text-gray-600 mb-2 text-center">Zehner:</div>
-                    <div className="flex flex-wrap justify-center gap-3">
-                      {Array.from({ length: tens }).map((_, i) => (
-                        <div key={i} className="flex flex-col items-center">
-                          <div className="grid grid-cols-2 gap-1 p-2 rounded-lg bg-blue-100 border-2 border-blue-400">
-                            {Array.from({ length: 10 }).map((_, j) => (
-                              <div key={j} className="w-3 h-3 rounded-full bg-blue-500" />
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Ones */}
-                {ones > 0 && (
-                  <div>
-                    <div className="text-sm font-bold text-gray-600 mb-2 text-center">Einer:</div>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {Array.from({ length: ones }).map((_, i) => (
-                        <div key={i} className="w-5 h-5 rounded-full bg-amber-500 border-2 border-amber-600" />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Input fields */}
-              <div className="max-w-md mx-auto space-y-4">
-                <div className="flex items-center gap-4">
-                  <label className="flex-1 flex items-center gap-3 bg-white rounded-2xl border-2 border-blue-400 p-4">
-                    <span className="text-2xl font-extrabold text-blue-600">Z</span>
-                    <span className="text-sm font-bold text-gray-600">=</span>
+                    <label className="block text-center mb-2">
+                      <span className="text-lg font-extrabold text-gray-700">Z</span>
+                    </label>
                     <input
                       type="text"
                       inputMode="numeric"
                       value={zInput}
                       onChange={(e) => setZInput(cleanNumericInput(e.target.value))}
-                      className="flex-1 text-center text-3xl font-extrabold outline-none bg-transparent"
-                      placeholder="?"
+                      className="w-full h-20 text-center text-4xl font-extrabold outline-none bg-white border-2 border-gray-300 rounded-xl"
+                      placeholder=""
                       aria-label="Zehner"
                     />
-                  </label>
-                </div>
+                  </div>
 
-                <div className="flex items-center gap-4">
-                  <label className="flex-1 flex items-center gap-3 bg-white rounded-2xl border-2 border-amber-400 p-4">
-                    <span className="text-2xl font-extrabold text-amber-600">E</span>
-                    <span className="text-sm font-bold text-gray-600">=</span>
+                  {/* E field */}
+                  <div>
+                    <label className="block text-center mb-2">
+                      <span className="text-lg font-extrabold text-gray-700">E</span>
+                    </label>
                     <input
                       type="text"
                       inputMode="numeric"
                       value={eInput}
                       onChange={(e) => setEInput(cleanNumericInput(e.target.value))}
-                      className="flex-1 text-center text-3xl font-extrabold outline-none bg-transparent"
-                      placeholder="?"
+                      className="w-full h-20 text-center text-4xl font-extrabold outline-none bg-white border-2 border-gray-300 rounded-xl"
+                      placeholder=""
                       aria-label="Einer"
                     />
-                  </label>
+                  </div>
                 </div>
 
                 <button
                   onClick={checkAnswer}
-                  className="w-full px-4 py-3 rounded-2xl bg-purple-500 text-white font-extrabold shadow-md border border-purple-600 flex items-center justify-center"
+                  className="w-full mt-6 px-4 py-3 rounded-2xl bg-purple-500 text-white font-extrabold shadow-md border border-purple-600 flex items-center justify-center hover:bg-purple-600 transition-colors"
                 >
                   <span className="text-xl sm:text-2xl">✓</span>
                   <span className="ml-2 text-sm sm:text-base">Prüfen</span>
