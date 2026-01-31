@@ -275,16 +275,36 @@ export default function Zehner() {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Zehner und Einer - Übungsblatt</title>
   <style>
-    @media print {
-      @page { size: A4; margin: 1cm; }
-      body { margin: 0; padding: 0; }
-      .no-print { display: none !important; }
-    }
-
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+
+    @media print {
+      @page {
+        size: A4;
+        margin: 1cm;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .visual-container,
+      .ten-bundle,
+      .stick,
+      .band,
+      .one-circle {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
     }
 
     body {
@@ -327,10 +347,10 @@ export default function Zehner() {
     }
 
     .exercise {
-      border: 1px solid #ccc;
+      border: 2px solid #333;
       border-radius: 8px;
       padding: 10px;
-      background: #fafafa;
+      background: white;
       page-break-inside: avoid;
     }
 
@@ -339,6 +359,7 @@ export default function Zehner() {
       font-weight: bold;
       margin-bottom: 8px;
       text-align: center;
+      color: #000;
     }
 
     .visual-container {
@@ -349,36 +370,43 @@ export default function Zehner() {
       margin-bottom: 12px;
       min-height: 80px;
       flex-wrap: wrap;
+      padding: 5px;
     }
 
     .ten-bundle {
       position: relative;
-      display: flex;
-      gap: 0.5px;
+      display: inline-flex;
+      gap: 1px;
+      margin: 0 2px;
     }
 
     .stick {
-      width: 2px;
+      width: 3px;
       height: 50px;
-      background: #ea580c;
-      border-radius: 1px;
+      background-color: #ea580c;
+      border: 1px solid #c2410c;
+      display: inline-block;
     }
 
     .band {
       position: absolute;
       top: 50%;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: #dc2626;
+      left: -2px;
+      right: -2px;
+      height: 5px;
+      background-color: #dc2626;
+      border: 1px solid #991b1b;
       transform: translateY(-50%);
     }
 
     .one-circle {
-      width: 8px;
-      height: 8px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
-      background: #ea580c;
+      background-color: #ea580c;
+      border: 2px solid #c2410c;
+      display: inline-block;
+      margin: 0 1px;
     }
 
     .input-row {
@@ -398,13 +426,13 @@ export default function Zehner() {
       font-size: 10px;
       font-weight: bold;
       margin-bottom: 2px;
-      color: #666;
+      color: #000;
     }
 
     .input-field {
       width: 35px;
       height: 35px;
-      border: 2px solid #333;
+      border: 2px solid #000;
       border-radius: 4px;
       font-size: 18px;
       font-weight: bold;
