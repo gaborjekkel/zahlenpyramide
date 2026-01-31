@@ -230,34 +230,26 @@ export default function Zehner() {
           <div className="px-4 md:px-6 pb-6">
             <div className="rounded-3xl bg-white/70 border p-6 md:p-8">
               {/* Visual representation */}
-              <div className="flex flex-col items-center gap-6 mb-8">
-                {/* Tens groups */}
+              <div className="flex justify-center items-start gap-8 mb-8 flex-wrap">
+                {/* Tens groups - each as a column of 10 circles */}
                 {tens > 0 && (
-                  <div>
-                    <div className="text-sm font-bold text-gray-600 mb-3 text-center">Zehner:</div>
-                    <div className="flex flex-wrap justify-center gap-3">
-                      {Array.from({ length: tens }).map((_, i) => (
-                        <div key={i} className="flex flex-col items-center">
-                          <div className="grid grid-cols-2 gap-1 p-2 rounded-lg bg-blue-100 border-2 border-blue-400">
-                            {Array.from({ length: 10 }).map((_, j) => (
-                              <div key={j} className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-blue-500" />
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="flex gap-3">
+                    {Array.from({ length: tens }).map((_, i) => (
+                      <div key={i} className="flex flex-col gap-1">
+                        {Array.from({ length: 10 }).map((_, j) => (
+                          <div key={j} className="w-5 h-5 rounded-full bg-blue-500 border border-blue-700" />
+                        ))}
+                      </div>
+                    ))}
                   </div>
                 )}
 
-                {/* Ones */}
+                {/* Ones - single circles */}
                 {ones > 0 && (
-                  <div>
-                    <div className="text-sm font-bold text-gray-600 mb-3 text-center">Einer:</div>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {Array.from({ length: ones }).map((_, i) => (
-                        <div key={i} className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-amber-500 border-2 border-amber-600" />
-                      ))}
-                    </div>
+                  <div className="flex flex-col gap-1">
+                    {Array.from({ length: ones }).map((_, i) => (
+                      <div key={i} className="w-5 h-5 rounded-full bg-amber-500 border border-amber-700" />
+                    ))}
                   </div>
                 )}
               </div>
