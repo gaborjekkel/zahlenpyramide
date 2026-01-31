@@ -339,38 +339,43 @@ export default function Zehner() {
       page-break-after: auto;
     }
 
-    .exercises-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 15px;
+    .exercises-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
       margin-bottom: 20px;
     }
 
     .exercise {
-      border: 2px solid #333;
-      border-radius: 8px;
-      padding: 10px;
-      background: white;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 8px 0;
+      border-bottom: 1px solid #ccc;
       page-break-inside: avoid;
     }
 
+    .exercise:last-child {
+      border-bottom: none;
+    }
+
     .exercise-number {
-      font-size: 14px;
+      font-size: 12px;
       font-weight: bold;
-      margin-bottom: 8px;
-      text-align: center;
       color: #000;
+      min-width: 60px;
+      flex-shrink: 0;
     }
 
     .visual-container {
       display: flex;
-      justify-content: center;
+      justify-content: flex-start;
       align-items: flex-end;
       gap: 4px;
-      margin-bottom: 12px;
-      min-height: 80px;
+      min-height: 50px;
       flex-wrap: wrap;
       padding: 5px;
+      flex: 1;
     }
 
     .ten-bundle {
@@ -411,9 +416,10 @@ export default function Zehner() {
 
     .input-row {
       display: flex;
-      justify-content: center;
+      justify-content: flex-start;
       align-items: center;
       gap: 2px;
+      flex-shrink: 0;
     }
 
     .input-box {
@@ -430,11 +436,11 @@ export default function Zehner() {
     }
 
     .input-field {
-      width: 35px;
-      height: 35px;
+      width: 30px;
+      height: 30px;
       border: 2px solid #000;
       border-radius: 4px;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: bold;
       text-align: center;
       background: white;
@@ -451,7 +457,7 @@ ${(() => {
       const endIdx = startIdx + exercisesPerPage;
       const pageExercises = exercises.slice(startIdx, endIdx);
 
-      pagesHTML += '<div class="page"><div class="exercises-grid">';
+      pagesHTML += '<div class="page"><div class="exercises-list">';
 
       for (let i = 0; i < pageExercises.length; i++) {
         const ex = pageExercises[i];
@@ -479,7 +485,7 @@ ${(() => {
 
         pagesHTML += `
           <div class="exercise">
-            <div class="exercise-number">Aufgabe ${startIdx + i + 1}</div>
+            <div class="exercise-number">Aufgabe ${startIdx + i + 1}:</div>
             <div class="visual-container">
               ${visualHTML}
             </div>
