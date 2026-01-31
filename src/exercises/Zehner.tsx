@@ -359,14 +359,6 @@ export default function Zehner() {
       border-bottom: none;
     }
 
-    .exercise-number {
-      font-size: 12px;
-      font-weight: bold;
-      color: #000;
-      min-width: 60px;
-      flex-shrink: 0;
-    }
-
     .visual-container {
       display: flex;
       justify-content: flex-start;
@@ -485,7 +477,6 @@ ${(() => {
 
         pagesHTML += `
           <div class="exercise">
-            <div class="exercise-number">Aufgabe ${startIdx + i + 1}:</div>
             <div class="visual-container">
               ${visualHTML}
             </div>
