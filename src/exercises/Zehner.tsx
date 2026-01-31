@@ -20,7 +20,7 @@ export default function Zehner() {
     } catch {
       // ignore
     }
-    return "10-99";
+    return "0-20";
   });
 
   const [tens, setTens] = useState<number>(0);
@@ -81,23 +81,22 @@ export default function Zehner() {
     []
   );
 
-  function getRange(range: string): { minTens: number; maxTens: number; minOnes: number; maxOnes: number } {
+  function getRange(range: string): { min: number; max: number } {
     switch (range) {
-      case "10-50":
-        return { minTens: 1, maxTens: 5, minOnes: 0, maxOnes: 9 };
-      case "10-99":
-        return { minTens: 1, maxTens: 9, minOnes: 0, maxOnes: 9 };
-      case "20-99":
-        return { minTens: 2, maxTens: 9, minOnes: 0, maxOnes: 9 };
+      case "0-20":
+        return { min: 0, max: 20 };
+      case "0-100":
+        return { min: 0, max: 100 };
       default:
-        return { minTens: 1, maxTens: 9, minOnes: 0, maxOnes: 9 };
+        return { min: 0, max: 20 };
     }
   }
 
   function newPuzzle() {
     const range = getRange(numberRange);
-    const newTens = randInt(range.minTens, range.maxTens);
-    const newOnes = randInt(range.minOnes, range.maxOnes);
+    const number = randInt(range.min, range.max);
+    const newTens = Math.floor(number / 10);
+    const newOnes = number % 10;
     setTens(newTens);
     setOnes(newOnes);
     setZInput("");
@@ -230,27 +229,35 @@ export default function Zehner() {
           <div className="px-4 md:px-6 pb-6">
             <div className="rounded-3xl bg-white/70 border p-6 md:p-8">
               {/* Visual representation */}
-              <div className="flex justify-center items-start gap-8 mb-8 flex-wrap">
-                {/* Tens groups - each as a column of 10 circles */}
-                {tens > 0 && (
-                  <div className="flex gap-3">
+              <div className="flex justify-center items-end gap-4 mb-8 flex-wrap">
+                {numberRange === "0-100" ? (
+                  <>
+                    {/* Tens groups - bundles of vertical sticks (only for 0-100) */}
                     {Array.from({ length: tens }).map((_, i) => (
-                      <div key={i} className="flex flex-col gap-1">
-                        {Array.from({ length: 10 }).map((_, j) => (
-                          <div key={j} className="w-5 h-5 rounded-full bg-blue-500 border border-blue-700" />
-                        ))}
+                      <div key={i} className="relative">
+                        {/* Bundle of 10 vertical lines */}
+                        <div className="flex gap-0.5">
+                          {Array.from({ length: 10 }).map((_, j) => (
+                            <div key={j} className="w-1 h-20 bg-orange-600 rounded-sm" />
+                          ))}
+                        </div>
+                        {/* Binding band around the bundle */}
+                        <div className="absolute top-1/2 left-0 right-0 h-2 bg-red-600 -translate-y-1/2" />
                       </div>
                     ))}
-                  </div>
-                )}
 
-                {/* Ones - single circles */}
-                {ones > 0 && (
-                  <div className="flex flex-col gap-1">
+                    {/* Ones - individual small circles */}
                     {Array.from({ length: ones }).map((_, i) => (
-                      <div key={i} className="w-5 h-5 rounded-full bg-amber-500 border border-amber-700" />
+                      <div key={i} className="w-4 h-4 rounded-full bg-orange-600" />
                     ))}
-                  </div>
+                  </>
+                ) : (
+                  <>
+                    {/* For 0-20: Just show all as individual circles (no bundling) */}
+                    {Array.from({ length: tens * 10 + ones }).map((_, i) => (
+                      <div key={i} className="w-4 h-4 rounded-full bg-orange-600" />
+                    ))}
+                  </>
                 )}
               </div>
 
@@ -347,9 +354,8 @@ export default function Zehner() {
                         onChange={(e) => setNumberRange(e.target.value)}
                         className="w-full bg-white/70 rounded-xl border px-3 py-2 text-lg font-extrabold outline-none"
                       >
-                        <option value="10-50">10 - 50</option>
-                        <option value="10-99">10 - 99</option>
-                        <option value="20-99">20 - 99</option>
+                        <option value="0-20">0 - 20</option>
+                        <option value="0-100">0 - 100</option>
                       </select>
                     </label>
 
